@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { T } from '@threlte/core';
 	import { OrbitControls, interactivity } from '@threlte/extras';
-	import { Game } from './main';
-	import { x, y, z, w } from './store';
 	import { PerspectiveCamera, Vector2 } from 'three';
 	import { clamp } from 'three/src/math/MathUtils.js';
+	import { Game, type Stone } from './main';
+	import { x, y, z, w, result } from './store';
 
 	const STONE_SIZE = 0.95;
 	const STONE_COLOR_1 = 'black';
@@ -13,7 +13,7 @@
 	const FRAME_THICKNESS = 0.01;
 
 	export let game: Game;
-    
+
 	let [xLength, yLength, zLength, wLength] = game.config.boardShape;
 	let camera: PerspectiveCamera | undefined;
 
@@ -24,30 +24,42 @@
 			currentTarget: EventTarget & Window;
 		}
 	) {
-		if (camera) {
-			let c = (new Vector2(camera.position.x, camera.position.z).normalize().angle() / Math.PI) * 4;
-			let aPressed = Number(e.key == 'a');
-			let dPressed = Number(e.key == 'd');
-			let wPressed = Number(e.key == 'w');
-			let sPressed = Number(e.key == 's');
+		if (!$result.finished) {
+			if (e.key == 'Control') {
+				let resultRaw = game.playTurn([$x, $y, $z, $w]);
+				if (resultRaw.finished) result.set(resultRaw);
 
-			if (1 <= c && c < 3) {
-				x.update((n) => clamp(n - aPressed + dPressed, 0, xLength - 1));
-				z.update((n) => clamp(n - wPressed + sPressed, 0, zLength - 1));
-			} else if (3 <= c && c < 5) {
-				z.update((n) => clamp(n - aPressed + dPressed, 0, zLength - 1));
-				x.update((n) => clamp(n + wPressed - sPressed, 0, xLength - 1));
-			} else if (5 <= c && c < 7) {
-				x.update((n) => clamp(n + aPressed - dPressed, 0, xLength - 1));
-				z.update((n) => clamp(n + wPressed - sPressed, 0, zLength - 1));
-			} else {
-				z.update((n) => clamp(n + aPressed - dPressed, 0, zLength - 1));
-				x.update((n) => clamp(n - wPressed + sPressed, 0, xLength - 1));
+				game.board = game.board;
 			}
-		}
 
-		y.update((n) => clamp(n + Number(e.code == 'Space') - Number(e.key == 'Shift'), 0, yLength - 1));
-		w.update((n) => clamp(n + Number(e.key == 'e') - Number(e.key == 'q'), 0, wLength - 1));
+			if (camera) {
+				let c =
+					(new Vector2(camera.position.x, camera.position.z).normalize().angle() / Math.PI) * 4;
+				let aPressed = Number(e.key == 'a');
+				let dPressed = Number(e.key == 'd');
+				let wPressed = Number(e.key == 'w');
+				let sPressed = Number(e.key == 's');
+
+				if (1 <= c && c < 3) {
+					x.update((n) => clamp(n - aPressed + dPressed, 0, xLength - 1));
+					z.update((n) => clamp(n - wPressed + sPressed, 0, zLength - 1));
+				} else if (3 <= c && c < 5) {
+					z.update((n) => clamp(n - aPressed + dPressed, 0, zLength - 1));
+					x.update((n) => clamp(n + wPressed - sPressed, 0, xLength - 1));
+				} else if (5 <= c && c < 7) {
+					x.update((n) => clamp(n + aPressed - dPressed, 0, xLength - 1));
+					z.update((n) => clamp(n + wPressed - sPressed, 0, zLength - 1));
+				} else {
+					z.update((n) => clamp(n + aPressed - dPressed, 0, zLength - 1));
+					x.update((n) => clamp(n - wPressed + sPressed, 0, xLength - 1));
+				}
+			}
+
+			w.update((n) => clamp(n + Number(e.key == 'e') - Number(e.key == 'q'), 0, wLength - 1));
+			y.update((n) =>
+				clamp(n + Number(e.code == 'Space') - Number(e.key == 'Shift'), 0, yLength - 1)
+			);
+		}
 	}
 </script>
 
@@ -55,28 +67,7 @@
 
 <!-- Cube -->
 <T.Group>
-    <!-- Selecting Cell -->
-	<T.Sprite position={[$x - (xLength - 1) / 2, $y - (yLength - 1) / 2, $z - (zLength - 1) / 2]}>
-		<T.RingGeometry
-			args={[($w / wLength / 2) * STONE_SIZE, (($w + 1) / wLength / 2) * STONE_SIZE, 32]}
-		/>
-		<T.SpriteMaterial
-			color={game.currentPlayer.index == 0 ? STONE_COLOR_1 : STONE_COLOR_2}
-			opacity={0.4}
-			transparent={true}
-			depthTest={false}
-		/>
-	</T.Sprite>
-	<T.Mesh position={[$x - (xLength - 1) / 2, $y - (yLength - 1) / 2, $z - (zLength - 1) / 2]}>
-		<T.BoxGeometry args={[1, 1, 1]} />
-		<T.MeshBasicMaterial
-			color={game.isPositionEmpty([$x, $y, $z, $w]) ? 'blue' : 'red'}
-			opacity={0.2}
-			transparent={true}
-			depthTest={false}
-		/>
-	</T.Mesh>
-
+	<!-- Stone -->
 	{#each game.board.flat(3) as cell}
 		{#if cell.stone}
 			{@const [x, y, z, w] = cell.stone.position}
@@ -89,6 +80,47 @@
 		{/if}
 	{/each}
 
+	{#if $result.finished && $result.stones}
+		<!-- Finished -->
+		{#each $result.stones
+			.map((stone) => stone.position)
+			.filter((p, i, ps) => ps.filter((q, j) => p[0] == q[0] && p[1] == q[1] && p[2] == q[2] && i < j).length == 0) as position}
+			<T.Mesh
+				position={[
+					position[0] - (xLength - 1) / 2,
+					position[1] - (yLength - 1) / 2,
+					position[2] - (zLength - 1) / 2
+				]}
+			>
+				<T.BoxGeometry args={[1, 1, 1]} />
+				<T.MeshBasicMaterial color={'yellow'} opacity={0.4} transparent={true} depthTest={false} />
+			</T.Mesh>
+		{/each}
+	{:else}
+		<!-- Selecting -->
+		<T.Mesh position={[$x - (xLength - 1) / 2, $y - (yLength - 1) / 2, $z - (zLength - 1) / 2]}>
+			<T.BoxGeometry args={[1, 1, 1]} />
+			<T.MeshBasicMaterial
+				color={game.isPositionEmpty([$x, $y, $z, $w]) ? 'blue' : 'red'}
+				opacity={0.2}
+				transparent={true}
+				depthTest={false}
+			/>
+		</T.Mesh>
+		<T.Sprite position={[$x - (xLength - 1) / 2, $y - (yLength - 1) / 2, $z - (zLength - 1) / 2]}>
+			<T.RingGeometry
+				args={[($w / wLength / 2) * STONE_SIZE, (($w + 1) / wLength / 2) * STONE_SIZE, 32]}
+			/>
+			<T.SpriteMaterial
+				color={game.currentPlayer.index == 0 ? STONE_COLOR_1 : STONE_COLOR_2}
+				opacity={0.4}
+				transparent={true}
+				depthTest={false}
+			/>
+		</T.Sprite>
+	{/if}
+
+	<!-- Frame -->
 	{#each { length: yLength + 1 } as _, y}
 		{#each { length: zLength + 1 } as _, z}
 			<T.Mesh position.y={y - yLength / 2} position.z={z - zLength / 2}>

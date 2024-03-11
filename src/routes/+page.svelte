@@ -3,36 +3,20 @@
 	import Scene from './Scene.svelte';
 	import 'normalize.css';
 	import './styles.scss';
-
-	import { Game } from './main';
-	import type { Config } from './main';
-	import { x, y, z, w, DIMENSIONS } from './store';
+	import { Game, type Config } from './main';
 
 	let innerWidth: number, innerHeight: number;
-
 	let config: Config = {
 		kCount: 4,
 		boardShape: [4, 4, 4, 4]
 	};
-	let game = new Game(config);
 
-	function onClick() {
-		let [judgement, player, stones] = game.playTurn([$x, $y, $z, $w]);
-
-        if (judgement && player && stones) {
-            
-        }
-
-		game.board = game.board;
-	}
+	const game = new Game(config);
 </script>
 
 <svelte:window
 	bind:innerWidth
 	bind:innerHeight
-	on:keydown={(e) => {
-		if (e.key == 'Control') onClick();
-	}}
 />
 
 <Canvas size={{ width: innerWidth, height: innerHeight }}>

@@ -1,6 +1,11 @@
 import { DIRECTIONS } from "./directions";
 
 export type Number4d = [number, number, number, number];
+export type Result = {
+  finished: boolean,
+  winner: Player | undefined,
+  stones: Stone[] | undefined,
+}
 
 export interface Config {
   kCount: number;
@@ -20,15 +25,15 @@ export class PositionOverlapError extends Error {
 }
 
 class Player {
-  constructor(public index: 0 | 1) {}
+  constructor(public index: 0 | 1) { }
 }
 
-class Stone {
-  constructor(public player: Player, public position: Number4d) {}
+export class Stone {
+  constructor(public player: Player, public position: Number4d) { }
 }
 
 class Cell {
-  constructor(public stone?: Stone) {}
+  constructor(public stone?: Stone) { }
 }
 
 export class Game {
@@ -54,7 +59,7 @@ export class Game {
     this.currentPlayer = this.players[0];
   }
 
-  playTurn(stonePosition: Number4d): [true, Player, Stone[]] | [false] {
+  playTurn(stonePosition: Number4d): Result {
     let stone: Stone;
     try {
       stone = this.placeStone(this.currentPlayer, stonePosition);
@@ -62,17 +67,17 @@ export class Game {
       throw e;
     }
 
-    let [judgement, player, stones] = this.judge(this.currentPlayer, stone);
-    if (judgement && player && stones) return [judgement, player, stones];
-    else this.currentPlayer = this.players[1 - this.currentPlayer.index];
-    return [false];
+    let result = this.judge(this.currentPlayer, stone);
+
+    if (!result.finished) this.currentPlayer = this.players[1 - this.currentPlayer.index];
+    return result;
   }
 
   isPositionEmpty(position: Number4d): boolean {
     let [x, y, z, w] = position;
     let cell = this.board?.[x]?.[y]?.[z]?.[w];
     if (!cell) throw new BoardRangeError();
-    return !cell.stone
+    return !cell.stone;
   }
 
   placeStone(player: Player, position: Number4d): Stone {
@@ -87,7 +92,7 @@ export class Game {
     }
   }
 
-  judge(player: Player, stone: Stone): [false] | [true, Player, Stone[]] {
+  judge(player: Player, stone: Stone): Result {
     let [x, y, z, w] = stone.position;
     let stones: Stone[] = [stone];
 
@@ -116,9 +121,17 @@ export class Game {
       }
     }
 
-    let judgement = stones.length === this.config.kCount;
-    if (judgement) return [judgement, player, stones];
-    else return [judgement];
+    let finished = stones.length === this.config.kCount;
+    if (finished) return {
+      finished: finished,
+      winner: player,
+      stones: stones
+    };
+    else return {
+      finished: finished,
+      winner: undefined,
+      stones: undefined
+    };
   }
 }
 
