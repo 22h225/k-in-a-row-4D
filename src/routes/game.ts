@@ -12,36 +12,22 @@ export interface Config {
   boardShape: Number4d;
 }
 
-export class BoardRangeError extends Error {
-  static {
-    this.prototype.name = "BoardRangeError";
-  }
-}
+export class BoardRangeError extends Error { static { this.prototype.name = "BoardRangeError"; } }
+export class PositionOverlapError extends Error { static { this.prototype.name = "PositionOverlapError"; } }
 
-export class PositionOverlapError extends Error {
-  static {
-    this.prototype.name = "PositionOverlapError";
-  }
-}
-
-class Player {
-  constructor(public index: 0 | 1) { }
-}
-
-export class Stone {
-  constructor(public player: Player, public position: Number4d) { }
-}
-
-class Cell {
-  constructor(public stone?: Stone) { }
-}
+export class Player { constructor(public index: 0 | 1, public name: string) { } }
+export class Stone { constructor(public player: Player, public position: Number4d) { } }
+export class Cell { constructor(public stone?: Stone) { } }
 
 export class Game {
-  board: Cell[][][][] = [];
   players: [Player, Player];
   currentPlayer: Player;
+  board: Cell[][][][] = [];
 
   constructor(public config: Config) {
+    this.players = [new Player(0, 'Bob'), new Player(1, 'David')];
+    this.currentPlayer = this.players[0];
+
     for (let x = 0; x < this.config.boardShape[0]; x++) {
       this.board[x] = [];
       for (let y = 0; y < this.config.boardShape[1]; y++) {
@@ -54,19 +40,10 @@ export class Game {
         }
       }
     }
-
-    this.players = [new Player(0), new Player(1)];
-    this.currentPlayer = this.players[0];
   }
 
   playTurn(stonePosition: Number4d): Result {
-    let stone: Stone;
-    try {
-      stone = this.placeStone(this.currentPlayer, stonePosition);
-    } catch (e) {
-      throw e;
-    }
-
+    let stone = this.placeStone(this.currentPlayer, stonePosition);
     let result = this.judge(this.currentPlayer, stone);
 
     if (!result.finished) this.currentPlayer = this.players[1 - this.currentPlayer.index];
@@ -76,6 +53,7 @@ export class Game {
   isPositionEmpty(position: Number4d): boolean {
     let [x, y, z, w] = position;
     let cell = this.board?.[x]?.[y]?.[z]?.[w];
+
     if (!cell) throw new BoardRangeError();
     return !cell.stone;
   }
@@ -83,6 +61,7 @@ export class Game {
   placeStone(player: Player, position: Number4d): Stone {
     let [x, y, z, w] = position;
     let cell = this.board?.[x]?.[y]?.[z]?.[w];
+
     if (!cell) throw new BoardRangeError();
     else if (cell.stone) throw new PositionOverlapError();
     else {

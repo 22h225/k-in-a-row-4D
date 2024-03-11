@@ -3,8 +3,10 @@
 	import { OrbitControls, interactivity } from '@threlte/extras';
 	import { PerspectiveCamera, Vector2 } from 'three';
 	import { clamp } from 'three/src/math/MathUtils.js';
-	import { Game, type Stone } from './main';
+	import { Game } from './game';
 	import { x, y, z, w, result } from './store';
+
+	export let game: Game;
 
 	const STONE_SIZE = 0.95;
 	const STONE_COLOR_1 = 'black';
@@ -12,26 +14,13 @@
 	const FRAME_COLOR = 'white';
 	const FRAME_THICKNESS = 0.01;
 
-	export let game: Game;
-
 	let [xLength, yLength, zLength, wLength] = game.config.boardShape;
 	let camera: PerspectiveCamera | undefined;
 
 	interactivity();
 
-	function onKeydown(
-		e: KeyboardEvent & {
-			currentTarget: EventTarget & Window;
-		}
-	) {
+	function onKeydown(e: KeyboardEvent & { currentTarget: EventTarget & Window }) {
 		if (!$result.finished) {
-			if (e.key == 'Control') {
-				let resultRaw = game.playTurn([$x, $y, $z, $w]);
-				if (resultRaw.finished) result.set(resultRaw);
-
-				game.board = game.board;
-			}
-
 			if (camera) {
 				let c =
 					(new Vector2(camera.position.x, camera.position.z).normalize().angle() / Math.PI) * 4;
@@ -67,19 +56,6 @@
 
 <!-- Cube -->
 <T.Group>
-	<!-- Stone -->
-	{#each game.board.flat(3) as cell}
-		{#if cell.stone}
-			{@const [x, y, z, w] = cell.stone.position}
-			<T.Sprite position={[x - (xLength - 1) / 2, y - (yLength - 1) / 2, z - (zLength - 1) / 2]}>
-				<T.RingGeometry
-					args={[(w / wLength / 2) * STONE_SIZE, ((w + 1) / wLength / 2) * STONE_SIZE, 32]}
-				/>
-				<T.SpriteMaterial color={cell.stone.player.index == 0 ? STONE_COLOR_1 : STONE_COLOR_2} />
-			</T.Sprite>
-		{/if}
-	{/each}
-
 	{#if $result.finished && $result.stones}
 		<!-- Finished -->
 		{#each $result.stones
@@ -120,6 +96,22 @@
 		</T.Sprite>
 	{/if}
 
+	<!-- Stone -->
+	{#each game.board.flat(3) as cell}
+		{#if cell.stone}
+			{@const [x, y, z, w] = cell.stone.position}
+			<T.Sprite
+				position={[x - (xLength - 1) / 2, y - (yLength - 1) / 2, z - (zLength - 1) / 2]}
+				renderOrder={1}
+			>
+				<T.RingGeometry
+					args={[(w / wLength / 2) * STONE_SIZE, ((w + 1) / wLength / 2) * STONE_SIZE, 32]}
+				/>
+				<T.SpriteMaterial color={cell.stone.player.index == 0 ? STONE_COLOR_1 : STONE_COLOR_2} />
+			</T.Sprite>
+		{/if}
+	{/each}
+
 	<!-- Frame -->
 	{#each { length: yLength + 1 } as _, y}
 		{#each { length: zLength + 1 } as _, z}
@@ -149,7 +141,7 @@
 
 <T.PerspectiveCamera
 	makeDefault
-	position={[xLength * 1.5, yLength * 0.5, zLength * 1.5]}
+	position={[xLength * 2.5, yLength * 0.5, zLength * 1.0]}
 	bind:ref={camera}
 	on:create={({ ref }) => {
 		ref.lookAt(0, 0, 0);

@@ -1,4 +1,4 @@
-import type { Number4d } from "./main"
+import type { Number4d } from "./game"
 
 // -- Generation code --
 // const VALUES = [0, 1, -1];

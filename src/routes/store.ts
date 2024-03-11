@@ -1,5 +1,5 @@
 import { writable, type Writable } from 'svelte/store';
-import type { Result } from './main';
+import type { Result } from './game';
 
 export const x = writable(0);
 export const y = writable(0);
