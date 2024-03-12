@@ -1,12 +1,10 @@
 <script lang="ts">
 	import { T } from '@threlte/core';
-	import { OrbitControls, interactivity } from '@threlte/extras';
+	import { OrbitControls } from '@threlte/extras';
 	import { PerspectiveCamera, Vector2 } from 'three';
 	import { clamp } from 'three/src/math/MathUtils.js';
-	import { Game } from './game';
-	import { x, y, z, w, result } from './store';
-
-	export let game: Game;
+	import { x, y, z, w, result, config, players, currentPlayer, board } from './store';
+	import { type Number4d } from '$lib/game';
 
 	const STONE_SIZE = 0.95;
 	const STONE_COLOR_1 = 'black';
@@ -14,13 +12,25 @@
 	const FRAME_COLOR = 'white';
 	const FRAME_THICKNESS = 0.01;
 
-	let [xLength, yLength, zLength, wLength] = game.config.boardShape;
+	let xLength = 0;
+	let yLength = 0;
+	let zLength = 0;
+	let wLength = 0;
+	$: if($config) [xLength, yLength, zLength, wLength] = $config.boardShape;
+
 	let camera: PerspectiveCamera | undefined;
 
-	interactivity();
+	function isPositionEmpty(position: Number4d): boolean {
+		let [x, y, z, w] = position;
+		let cell = $board?.[x]?.[y]?.[z]?.[w];
+
+		// if (!cell) throw new BoardRangeError();
+		// return !cell.stone;
+		return !!cell && !cell.stone;
+	}
 
 	function onKeydown(e: KeyboardEvent & { currentTarget: EventTarget & Window }) {
-		if (!$result.finished) {
+		if (!$result?.finished) {
 			if (camera) {
 				let c =
 					(new Vector2(camera.position.x, camera.position.z).normalize().angle() / Math.PI) * 4;
@@ -56,7 +66,7 @@
 
 <!-- Cube -->
 <T.Group>
-	{#if $result.finished && $result.stones}
+	{#if $result?.finished && $result.stones}
 		<!-- Finished -->
 		{#each $result.stones
 			.map((stone) => stone.position)
@@ -77,7 +87,7 @@
 		<T.Mesh position={[$x - (xLength - 1) / 2, $y - (yLength - 1) / 2, $z - (zLength - 1) / 2]}>
 			<T.BoxGeometry args={[1, 1, 1]} />
 			<T.MeshBasicMaterial
-				color={game.isPositionEmpty([$x, $y, $z, $w]) ? 'blue' : 'red'}
+				color={$config && isPositionEmpty([$x, $y, $z, $w]) ? 'blue' : 'red'}
 				opacity={0.2}
 				transparent={true}
 				depthTest={false}
@@ -88,7 +98,7 @@
 				args={[($w / wLength / 2) * STONE_SIZE, (($w + 1) / wLength / 2) * STONE_SIZE, 32]}
 			/>
 			<T.SpriteMaterial
-				color={game.currentPlayer.index == 0 ? STONE_COLOR_1 : STONE_COLOR_2}
+				color={$currentPlayer?.index == 0 ? STONE_COLOR_1 : STONE_COLOR_2}
 				opacity={0.4}
 				transparent={true}
 				depthTest={false}
@@ -97,20 +107,22 @@
 	{/if}
 
 	<!-- Stone -->
-	{#each game.board.flat(3) as cell}
-		{#if cell.stone}
-			{@const [x, y, z, w] = cell.stone.position}
-			<T.Sprite
-				position={[x - (xLength - 1) / 2, y - (yLength - 1) / 2, z - (zLength - 1) / 2]}
-				renderOrder={1}
-			>
-				<T.RingGeometry
-					args={[(w / wLength / 2) * STONE_SIZE, ((w + 1) / wLength / 2) * STONE_SIZE, 32]}
-				/>
-				<T.SpriteMaterial color={cell.stone.player.index == 0 ? STONE_COLOR_1 : STONE_COLOR_2} />
-			</T.Sprite>
-		{/if}
-	{/each}
+	{#if $board}
+		{#each $board.flat(3) as cell}
+			{#if cell.stone}
+				{@const [x, y, z, w] = cell.stone.position}
+				<T.Sprite
+					position={[x - (xLength - 1) / 2, y - (yLength - 1) / 2, z - (zLength - 1) / 2]}
+					renderOrder={1}
+				>
+					<T.RingGeometry
+						args={[(w / wLength / 2) * STONE_SIZE, ((w + 1) / wLength / 2) * STONE_SIZE, 32]}
+					/>
+					<T.SpriteMaterial color={cell.stone.player.index == 0 ? STONE_COLOR_1 : STONE_COLOR_2} />
+				</T.Sprite>
+			{/if}
+		{/each}
+	{/if}
 
 	<!-- Frame -->
 	{#each { length: yLength + 1 } as _, y}

@@ -12,6 +12,11 @@ export interface Config {
   boardShape: Number4d;
 }
 
+export const configDefault: Config = {
+  kCount: 4,
+  boardShape: [4, 4, 4, 4]
+}
+
 export class BoardRangeError extends Error { static { this.prototype.name = "BoardRangeError"; } }
 export class PositionOverlapError extends Error { static { this.prototype.name = "PositionOverlapError"; } }
 
@@ -24,8 +29,8 @@ export class Game {
   currentPlayer: Player;
   board: Cell[][][][] = [];
 
-  constructor(public config: Config) {
-    this.players = [new Player(0, 'Bob'), new Player(1, 'David')];
+  constructor(public config = configDefault) {
+    this.players = [new Player(0, 'Player 1'), new Player(1, 'Player 2')];
     this.currentPlayer = this.players[0];
 
     for (let x = 0; x < this.config.boardShape[0]; x++) {

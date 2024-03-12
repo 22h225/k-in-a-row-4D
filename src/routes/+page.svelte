@@ -1,107 +1,77 @@
 <script lang="ts">
-	import { Canvas } from '@threlte/core';
-	import Scene from './Scene.svelte';
-	import 'normalize.css';
-	import './styles.scss';
-	import { Game, type Config } from './game';
-	import { x, y, z, w, result } from './store';
+	import { io } from 'socket.io-client';
+	const socket = io();
 
-	let innerWidth: number, innerHeight: number;
-	let config: Config = {
-		kCount: 4,
-		boardShape: [4, 4, 4, 4]
-	};
+	socket.emit('getRooms');
 
-	const game = new Game(config);
+	let rooms: string[] = [];
+	socket.on('getRooms', (arg: string[]) => {
+		rooms = arg;
+	});
 
-	function onKeydown(e: KeyboardEvent & { currentTarget: EventTarget & Window }) {
-		if (!$result.finished) {
-			if (e.key == 'Control') {
-				let resultRaw = game.playTurn([$x, $y, $z, $w]);
-				if (resultRaw.finished) result.set(resultRaw);
+	let value: string = '';
+</script>
 
-				game.currentPlayer = game.currentPlayer;
+<main>
+	<header>
+		<h1>４次元４目並べ</h1>
+	</header>
+
+	<div class="button-container">
+		<div>
+			<h2>Offline</h2>
+			<a href="/offline">
+				<button type="button">Play Offline</button>
+			</a>
+		</div>
+		<div class="online">
+			<h2>Online</h2>
+			<input bind:value type="text" name="room" id="room" autocomplete="off" />
+			<a href="/online?room={value}">
+				<button type="button">Play Online</button>
+			</a>
+			<table>
+				{#each rooms as room}
+					<tr>
+						<td>{room}</td>
+						<td><a href="/online?room={room}">join</a></td>
+					</tr>
+				{/each}
+				<tr></tr>
+			</table>
+		</div>
+	</div>
+</main>
+
+<style lang="scss">
+	main {
+		text-align: center;
+	}
+
+	.button-container {
+		display: flex;
+		justify-content: space-around;
+
+		& > div {
+			width: 50%;
+
+			& > a {
+				display: block;
+				margin: 1rem;
 			}
 		}
 	}
-</script>
 
-<svelte:window on:keydown={onKeydown} bind:innerWidth bind:innerHeight />
+	.online {
+		text-align: center;
 
-<Canvas size={{ width: innerWidth, height: innerHeight }}>
-	<Scene {game} />
-</Canvas>
+		table {
+			width: 100%;
+			padding: 2rem;
 
-<div class="overlay control">
-	<table>
-		<tr><td>カメラを回転移動</td><td>左クリック＆ドラッグ</td></tr>
-		<tr><td>カメラを平行移動</td><td>右クリック＆ドラッグ</td></tr>
-		<tr><td>左</td><td>A</td></tr>
-		<tr><td>右</td><td>D</td></tr>
-		<tr><td>奥</td><td>W</td></tr>
-		<tr><td>手前</td><td>S</td></tr>
-		<tr><td>広く</td><td>E</td></tr>
-		<tr><td>狭く</td><td>Q</td></tr>
-		<tr><td>上</td><td>Space</td></tr>
-		<tr><td>下</td><td>Shift</td></tr>
-		<tr><td>石を置く</td><td>Control</td></tr>
-	</table>
-</div>
-
-<div class="overlay status">
-	<table>
-		<tr><td>{game.players[0].name}</td><td>黒</td></tr>
-		<tr><td>{game.players[1].name}</td><td>白</td></tr>
-		<tr><td>現在のプレイヤー</td><td>{game.currentPlayer.name}</td></tr>
-		<tr><td></td><td></td></tr>
-	</table>
-</div>
-
-{#if $result.finished}
-	<div class="overlay result"><p>{$result.winner?.name}の勝ち！</p></div>
-{/if}
-
-<style lang="scss">
-	.overlay {
-		pointer-events: none;
-		z-index: 1;
-	}
-
-	.control,
-	.status {
-		position: absolute;
-		top: 0;
-		padding: 1rem;
-
-		table tr td {
-			padding: 0 0.5rem 0 0.5rem;
-			text-align: center;
-		}
-	}
-
-	.status {
-		right: 0;
-	}
-
-	.result {
-		position: absolute;
-		top: 50%;
-		left: 50%;
-		transform: translateY(-50%) translateX(-50%);
-		-webkit-transform: translateY(-50%) translateX(-50%);
-		width: 100%;
-		height: 5em;
-		background: rgba(255, 255, 0, 0.2);
-
-		p {
-			position: absolute;
-			top: 50%;
-			left: 50%;
-			transform: translateY(-50%) translateX(-50%);
-			-webkit-transform: translateY(-50%) translateX(-50%);
-			margin: 0;
-			font-size: large;
-			letter-spacing: 0.1em;
+			td {
+				width: 80%;
+			}
 		}
 	}
 </style>
