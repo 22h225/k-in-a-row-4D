@@ -27,6 +27,7 @@ const socketio = {
 				io.to('getRooms').emit('getRooms', Object.keys(rooms));
 				io.to(roomSuffix + roomId).emit(
 					'init',
+					game.result,
 					game.config,
 					game.players,
 					game.currentPlayer,

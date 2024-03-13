@@ -3,31 +3,30 @@
 	import { OrbitControls } from '@threlte/extras';
 	import { PerspectiveCamera, Vector2 } from 'three';
 	import { clamp } from 'three/src/math/MathUtils.js';
-	import { x, y, z, w, result, config, players, currentPlayer, board } from './store';
-	import { type Number4d } from '$lib/game';
-
-	const STONE_SIZE = 0.95;
-	const STONE_COLOR_1 = 'black';
-	const STONE_COLOR_2 = 'whitesmoke';
-	const FRAME_COLOR = 'white';
-	const FRAME_THICKNESS = 0.01;
+	import {
+		BOX_EMPTY_COLOR,
+		BOX_NOT_EMTPTY_COLOR,
+		BOX_WON_COLOR,
+		BOX_OPACITY,
+		BOX_WON_OPACITY,
+		STONE_SIZE,
+		STONE_COLOR_1,
+		STONE_COLOR_2,
+		STONE_SELECTING_OPACITY,
+		FRAME_THICKNESS,
+		FRAME_COLOR,
+		CAMERA_POSITON_RATE
+	} from '$lib/client_constants';
+	import { x, y, z, w, result, config, currentPlayer, board } from './store';
 
 	let xLength = 0;
 	let yLength = 0;
 	let zLength = 0;
 	let wLength = 0;
-	$: if($config) [xLength, yLength, zLength, wLength] = $config.boardShape;
+	$: if ($config) [xLength, yLength, zLength, wLength] = $config.boardShape;
 
 	let camera: PerspectiveCamera | undefined;
-
-	function isPositionEmpty(position: Number4d): boolean {
-		let [x, y, z, w] = position;
-		let cell = $board?.[x]?.[y]?.[z]?.[w];
-
-		// if (!cell) throw new BoardRangeError();
-		// return !cell.stone;
-		return !!cell && !cell.stone;
-	}
+	$: isSelectingPositionEmpty = !$board?.[$x]?.[$y]?.[$z]?.[$w].stone;
 
 	function onKeydown(e: KeyboardEvent & { currentTarget: EventTarget & Window }) {
 		if (!$result?.finished) {
@@ -66,44 +65,54 @@
 
 <!-- Cube -->
 <T.Group>
-	{#if $result?.finished && $result.stones}
-		<!-- Finished -->
-		{#each $result.stones
-			.map((stone) => stone.position)
-			.filter((p, i, ps) => ps.filter((q, j) => p[0] == q[0] && p[1] == q[1] && p[2] == q[2] && i < j).length == 0) as position}
-			<T.Mesh
-				position={[
-					position[0] - (xLength - 1) / 2,
-					position[1] - (yLength - 1) / 2,
-					position[2] - (zLength - 1) / 2
-				]}
-			>
-				<T.BoxGeometry args={[1, 1, 1]} />
-				<T.MeshBasicMaterial color={'yellow'} opacity={0.4} transparent={true} depthTest={false} />
-			</T.Mesh>
-		{/each}
-	{:else}
+	{#if !$result?.finished}
 		<!-- Selecting -->
-		<T.Mesh position={[$x - (xLength - 1) / 2, $y - (yLength - 1) / 2, $z - (zLength - 1) / 2]}>
-			<T.BoxGeometry args={[1, 1, 1]} />
-			<T.MeshBasicMaterial
-				color={$config && isPositionEmpty([$x, $y, $z, $w]) ? 'blue' : 'red'}
-				opacity={0.2}
-				transparent={true}
-				depthTest={false}
-			/>
-		</T.Mesh>
 		<T.Sprite position={[$x - (xLength - 1) / 2, $y - (yLength - 1) / 2, $z - (zLength - 1) / 2]}>
 			<T.RingGeometry
 				args={[($w / wLength / 2) * STONE_SIZE, (($w + 1) / wLength / 2) * STONE_SIZE, 32]}
 			/>
 			<T.SpriteMaterial
 				color={$currentPlayer?.index == 0 ? STONE_COLOR_1 : STONE_COLOR_2}
-				opacity={0.4}
+				opacity={STONE_SELECTING_OPACITY}
 				transparent={true}
-				depthTest={false}
 			/>
 		</T.Sprite>
+		<T.Mesh
+			renderOrder={1}
+			position={[$x - (xLength - 1) / 2, $y - (yLength - 1) / 2, $z - (zLength - 1) / 2]}
+		>
+			<T.BoxGeometry args={[1 - FRAME_THICKNESS, 1 - FRAME_THICKNESS, 1 - FRAME_THICKNESS]} />
+			<T.MeshBasicMaterial
+				color={isSelectingPositionEmpty ? BOX_EMPTY_COLOR : BOX_NOT_EMTPTY_COLOR}
+				opacity={BOX_OPACITY}
+				transparent={true}
+				depthWrite={false}
+			/>
+		</T.Mesh>
+	{:else}
+		<!-- Won -->
+		{#if $result.stones}
+			{#each $result.stones
+				.map((stone) => stone.position)
+				.filter((p, i, ps) => ps.filter((q, j) => p[0] == q[0] && p[1] == q[1] && p[2] == q[2] && i < j).length == 0) as position}
+				<T.Mesh
+					renderOrder={1}
+					position={[
+						position[0] - (xLength - 1) / 2,
+						position[1] - (yLength - 1) / 2,
+						position[2] - (zLength - 1) / 2
+					]}
+				>
+					<T.BoxGeometry args={[1 - FRAME_THICKNESS, 1 - FRAME_THICKNESS, 1 - FRAME_THICKNESS]} />
+					<T.MeshBasicMaterial
+						color={BOX_WON_COLOR}
+						opacity={BOX_WON_OPACITY}
+						transparent={true}
+						depthWrite={false}
+					/>
+				</T.Mesh>
+			{/each}
+		{/if}
 	{/if}
 
 	<!-- Stone -->
@@ -112,8 +121,8 @@
 			{#if cell.stone}
 				{@const [x, y, z, w] = cell.stone.position}
 				<T.Sprite
+					renderOrder={2}
 					position={[x - (xLength - 1) / 2, y - (yLength - 1) / 2, z - (zLength - 1) / 2]}
-					renderOrder={1}
 				>
 					<T.RingGeometry
 						args={[(w / wLength / 2) * STONE_SIZE, ((w + 1) / wLength / 2) * STONE_SIZE, 32]}
@@ -127,7 +136,7 @@
 	<!-- Frame -->
 	{#each { length: yLength + 1 } as _, y}
 		{#each { length: zLength + 1 } as _, z}
-			<T.Mesh position.y={y - yLength / 2} position.z={z - zLength / 2}>
+			<T.Mesh renderOrder={3} position.y={y - yLength / 2} position.z={z - zLength / 2}>
 				<T.BoxGeometry args={[xLength, FRAME_THICKNESS, FRAME_THICKNESS]} />
 				<T.MeshStandardMaterial color={FRAME_COLOR} />
 			</T.Mesh>
@@ -135,7 +144,7 @@
 	{/each}
 	{#each { length: zLength + 1 } as _, z}
 		{#each { length: xLength + 1 } as _, x}
-			<T.Mesh position.x={x - xLength / 2} position.z={z - zLength / 2}>
+			<T.Mesh renderOrder={3} position.x={x - xLength / 2} position.z={z - zLength / 2}>
 				<T.BoxGeometry args={[FRAME_THICKNESS, yLength, FRAME_THICKNESS]} />
 				<T.MeshStandardMaterial color={FRAME_COLOR} />
 			</T.Mesh>
@@ -143,7 +152,7 @@
 	{/each}
 	{#each { length: xLength + 1 } as _, x}
 		{#each { length: yLength + 1 } as _, y}
-			<T.Mesh position.x={x - xLength / 2} position.y={y - yLength / 2}>
+			<T.Mesh renderOrder={3} position.x={x - xLength / 2} position.y={y - yLength / 2}>
 				<T.BoxGeometry args={[FRAME_THICKNESS, FRAME_THICKNESS, zLength]} />
 				<T.MeshStandardMaterial color={FRAME_COLOR} />
 			</T.Mesh>
@@ -152,17 +161,16 @@
 </T.Group>
 
 <T.PerspectiveCamera
-	makeDefault
-	position={[xLength * 2.5, yLength * 0.5, zLength * 1.0]}
 	bind:ref={camera}
+	makeDefault
+	position={[
+		xLength * CAMERA_POSITON_RATE[0],
+		yLength * CAMERA_POSITON_RATE[1],
+		zLength * CAMERA_POSITON_RATE[2]
+	]}
 	on:create={({ ref }) => {
 		ref.lookAt(0, 0, 0);
 	}}
 >
-	<OrbitControls></OrbitControls>
+	<OrbitControls enablePan={false} />
 </T.PerspectiveCamera>
-
-<T.DirectionalLight position={[10, 10, 10]} />
-<T.DirectionalLight position={[10, 10, -10]} />
-<T.DirectionalLight position={[-10, 10, 10]} />
-<T.DirectionalLight position={[-10, 10, -10]} />

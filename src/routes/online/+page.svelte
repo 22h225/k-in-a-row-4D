@@ -1,25 +1,35 @@
 <script lang="ts">
+	import 'normalize.css';
 	import { Canvas } from '@threlte/core';
-	import Scene from './Scene.svelte';
-	import back_arrow_icon from '$lib/images/back-arrow-icon.svg';
-	import { x, y, z, w, result, config, players, currentPlayer, board } from './store';
+	import { Environment } from '@threlte/extras';
 	import { io } from 'socket.io-client';
 	import { page } from '$app/stores';
+	import { ENVIRONMENT_HDR } from '$lib/client_constants';
+	import back_arrow_icon from '$lib/images/back-arrow-icon.svg';
+	import { x, y, z, w, result, config, players, currentPlayer, board } from './store';
+	import Scene from './Scene.svelte';
+
+	$x = 0;
+	$y = 0;
+	$z = 0;
+	$w = 0;
 
 	let innerWidth: number, innerHeight: number;
 
 	const socket = io();
-	const room = $page.url.searchParams.get('room')
+	const room = $page.url.searchParams.get('room');
 	socket.emit('init', room);
 
 	socket.on(
 		'init',
 		(
+			resultRaw: typeof $result,
 			configRaw: typeof $config,
 			playersRaw: typeof $players,
 			currentPlayerRaw: typeof $currentPlayer,
 			boardRaw: typeof $board
 		) => {
+			$result = resultRaw;
 			$config = configRaw;
 			$players = playersRaw;
 			$currentPlayer = currentPlayerRaw;
@@ -50,7 +60,8 @@
 <svelte:window on:keydown={onKeydown} bind:innerWidth bind:innerHeight />
 
 <Canvas size={{ width: innerWidth, height: innerHeight }}>
-	{#if $board}<Scene />{/if}
+	<Environment files={ENVIRONMENT_HDR} isBackground={true} format="hdr" />
+	{#if $config}<Scene />{/if}
 </Canvas>
 
 <div class="overlay back">
@@ -80,15 +91,22 @@
 		<tr><td>下</td><td>Shift</td></tr>
 		<tr><td>石を置く</td><td>Control</td></tr>
 		<tr><td>カメラを回転移動</td><td>左クリック＆ドラッグ</td></tr>
-		<tr><td>カメラを平行移動</td><td>右クリック＆ドラッグ</td></tr>
 	</table>
 </div>
 
 {#if $result?.finished}
-	<div class="overlay result"><p>{$result.winner?.name}の勝ち！</p></div>
+	{#if $result.winner}
+		<div class="overlay result"><p>{$result.winner.name}の勝ち！</p></div>
+	{:else}
+		<div class="overlay result"><p>引き分け！</p></div>
+	{/if}
 {/if}
 
 <style lang="scss">
+	:root {
+		color: white;
+	}
+
 	.overlay {
 		pointer-events: none;
 		z-index: 1;
@@ -132,7 +150,7 @@
 		-webkit-transform: translateY(-50%) translateX(-50%);
 		width: 100%;
 		height: 5em;
-		background: rgba(255, 255, 0, 0.2);
+		background: rgba(255, 255, 0, 0.4);
 
 		p {
 			position: absolute;
@@ -142,6 +160,7 @@
 			-webkit-transform: translateY(-50%) translateX(-50%);
 			margin: 0;
 			font-size: large;
+			font-weight: bold;
 			letter-spacing: 0.1em;
 		}
 	}
